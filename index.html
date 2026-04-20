@@ -15,6 +15,18 @@
     .btn-primary:hover { background: #e88a00; }
     .cart-float { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
 
+    .limit-box {
+      background: white;
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 5px 15px rgba(139,69,19,0.1);
+      margin-bottom: 25px;
+    }
+    .limit-number {
+      font-size: 2.5rem;
+      font-weight: bold;
+      transition: color 0.4s ease;
+    }
     .success-overlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 3000;
@@ -49,7 +61,28 @@
     <h1 class="display-4 text-center fw-bold text-brown mb-2">Good Morning, Sunshine! ☀️</h1>
     <p class="text-center mb-5 lead">Fresh, fluffy pancakes made with love</p>
 
-    <div id="limitAlert" class="alert alert-warning text-center d-none"></div>
+    <!-- Order Limits Display -->
+    <div class="limit-box">
+      <div class="row text-center">
+        <div class="col-6 border-end">
+          <strong>Morning Orders</strong><br>
+          <span id="morningLeftDisplay" class="limit-number text-success">5</span>
+          <small class="d-block text-muted">left</small>
+        </div>
+        <div class="col-6">
+          <strong>Evening Orders</strong><br>
+          <span id="eveningLeftDisplay" class="limit-number text-success">5</span>
+          <small class="d-block text-muted">left</small>
+        </div>
+      </div>
+      <div class="text-center mt-3">
+        <small class="text-muted">Only 5 orders per session • First come, first served</small>
+      </div>
+    </div>
+
+    <!-- Sold Out Alert -->
+    <div id="limitAlert" class="alert alert-danger text-center fw-bold d-none"></div>
+
     <div class="row" id="menuContainer"></div>
   </div>
 
@@ -61,10 +94,7 @@
   <div class="modal fade" id="cartModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Your Cart</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
+        <div class="modal-header"><h5>Your Cart</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <div class="modal-body" id="cartItems"></div>
         <div class="modal-footer flex-column">
           <div class="w-100 d-flex justify-content-between mb-3 fs-5">
@@ -93,7 +123,7 @@
             <textarea id="address" class="form-control" rows="2" placeholder="Delivery Address"></textarea>
           </div>
           <div class="p-3 bg-light rounded mt-3">
-            <h6>Palmpay</h6>
+            <h6>Palmpay Details</h6>
             <p><strong>Account Name:</strong> Princewill faith</p>
             <p><strong>Account Number:</strong> 8135014753</p>
           </div>
@@ -144,8 +174,18 @@
 
     let cart = [];
 
+    function getToday() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    function isMorning() {
+      return new Date().getHours() < 12;
+    }
+
     function renderMenu() {
-      document.getElementById("menuContainer").innerHTML = menuItems.map(item => `
+      const container = document.getElementById("menuContainer");
+      container.innerHTML = menuItems.map(item => `
         <div class="col-md-6 col-lg-4 mb-4">
           <div class="card h-100">
             <div class="card-body">
@@ -153,7 +193,7 @@
               <p class="text-muted small">${item.desc}</p>
               <div class="d-flex justify-content-between align-items-center">
                 <h5 class="text-success">₦${item.price.toLocaleString()}</h5>
-                <button onclick="addToCart(${item.id})" class="btn btn-primary btn-sm px-4">Add to Cart</button>
+                <button onclick="addToCart(${item.id})" class="btn btn-primary btn-sm">Add to Cart</button>
               </div>
             </div>
           </div>
@@ -162,51 +202,41 @@
     }
 
     function addToCart(id) {
-      const item = menuItems.find(i => i.id === id);
-      if (!item) return;
-
-      const existing = cart.find(c => c.id === id);
-      if (existing) {
-        existing.quantity++;
-      } else {
-        cart.push({ ...item, quantity: 1 });
+      const alertEl = document.getElementById("limitAlert");
+      if (!alertEl.classList.contains('d-none')) {
+        alert("Sorry! Today's order limit has been reached.");
+        return;
       }
 
+      const item = menuItems.find(i => i.id === id);
+      const existing = cart.find(c => c.id === id);
+      if (existing) existing.quantity++;
+      else cart.push({ ...item, quantity: 1 });
+
       updateCartUI();
-      showToast(`${item.name} added! 🥞`);
-      console.log(`Added to cart: ${item.name} | Cart now:`, cart);
+      showToast(`${item.name} added to cart! 🥞`);
     }
 
     function updateCartUI() {
-      const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-      const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-
+      const totalItems = cart.reduce((a, c) => a + c.quantity, 0);
+      const totalPrice = cart.reduce((a, c) => a + c.price * c.quantity, 0);
       document.getElementById("cartBadge").textContent = totalItems;
       document.getElementById("floatingTotal").textContent = `₦${totalPrice.toLocaleString()}`;
     }
 
     function showCart() {
-      if (cart.length === 0) {
-        alert("Your cart is empty!");
-        return;
-      }
-
-      let html = cart.map((item, index) => `
-        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-3">
-          <div>
-            <strong>${item.name}</strong><br>
-            <small>₦${item.price} × ${item.quantity}</small>
-          </div>
+      if (cart.length === 0) return alert("Cart is empty!");
+      let html = cart.map((item, i) => `
+        <div class="d-flex justify-content-between mb-3">
+          <div><strong>${item.name}</strong><br><small>₦${item.price} × ${item.quantity}</small></div>
           <div class="text-end">
-            <strong>₦${(item.price * item.quantity).toLocaleString()}</strong><br>
-            <button onclick="removeFromCart(${index}); event.stopImmediatePropagation();" class="btn btn-sm btn-danger mt-1">Remove</button>
+            <strong>₦${(item.price*item.quantity).toLocaleString()}</strong><br>
+            <button onclick="removeFromCart(${i})" class="btn btn-sm btn-danger">Remove</button>
           </div>
         </div>
       `).join('');
-
       document.getElementById("cartItems").innerHTML = html;
-      document.getElementById("modalTotal").textContent = `₦${cart.reduce((sum, item) => sum + item.price * item.quantity, 0).toLocaleString()}`;
-
+      document.getElementById("modalTotal").textContent = `₦${cart.reduce((a,c)=>a+c.price*c.quantity,0).toLocaleString()}`;
       new bootstrap.Modal(document.getElementById("cartModal")).show();
     }
 
@@ -217,31 +247,42 @@
     }
 
     function proceedToCheckout() {
+      if (!document.getElementById("limitAlert").classList.contains('d-none')) {
+        alert("Sorry! Today's order limit has been reached.");
+        return;
+      }
       bootstrap.Modal.getInstance(document.getElementById("cartModal")).hide();
       new bootstrap.Modal(document.getElementById("checkoutModal")).show();
     }
 
     function toggleAddress() {
       document.getElementById("addressGroup").style.display = 
-        (document.getElementById("deliveryType").value === "Delivery") ? "block" : "none";
+        document.getElementById("deliveryType").value === "Delivery" ? "block" : "none";
     }
 
     async function placeOrder() {
-      if (cart.length === 0) return alert("Cart is empty!");
+      if (cart.length === 0) return;
+      if (!document.getElementById("limitAlert").classList.contains('d-none')) {
+        return alert("Order limit reached for today.");
+      }
 
       const name = document.getElementById("fullName").value.trim();
       const phone = document.getElementById("phone").value.trim();
       const deliveryType = document.getElementById("deliveryType").value;
       const address = document.getElementById("address").value.trim();
 
-      if (!name || !phone) return alert("Please enter name and phone");
+      if (!name || !phone) return alert("Name and phone are required");
 
       document.getElementById("successOverlay").style.display = "flex";
 
       try {
-        const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        const today = getToday();
+        const period = isMorning() ? "morning" : "evening";
+        const limitRef = db.collection("dailyLimits").doc(today);
 
-        const orderData = {
+        const total = cart.reduce((a,c)=>a + c.price * c.quantity, 0);
+
+        await db.collection("orders").add({
           name,
           phone: "234" + phone.replace(/^0+/, ''),
           items: cart,
@@ -250,15 +291,18 @@
           address: deliveryType === "Delivery" ? address : "Pickup",
           status: "pending",
           paid: false,
-          timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        };
+          timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+          period
+        });
 
-        await db.collection("orders").add(orderData);
+        await limitRef.set({
+          morningCount: firebase.firestore.FieldValue.increment(period === "morning" ? 1 : 0),
+          eveningCount: firebase.firestore.FieldValue.increment(period === "evening" ? 1 : 0)
+        }, { merge: true });
 
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, 1800));
 
         const message = encodeURIComponent(`Hi Ada! 🥞\nNew order from ${name}\nPhone: ${phone}\nTotal: ₦${total.toLocaleString()}\nItems:\n${cart.map(i => `• ${i.quantity}x ${i.name}`).join("\n")}\nDelivery: ${deliveryType}`);
-
         window.location.href = `https://wa.me/2348135014753?text=${message}`;
 
         cart = [];
@@ -268,23 +312,58 @@
       } catch (e) {
         document.getElementById("successOverlay").style.display = "none";
         console.error(e);
-        alert("Error: " + (e.message || "Please check console"));
+        alert("Error placing order. Please try again.");
       }
     }
 
     function showToast(msg) {
-      const toast = document.createElement("div");
-      toast.className = "toast show position-fixed bottom-0 end-0 m-3 bg-success text-white";
-      toast.innerHTML = `<div class="toast-body">${msg}</div>`;
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 2500);
+      const t = document.createElement("div");
+      t.className = "toast show position-fixed bottom-0 end-0 m-3 bg-success text-white";
+      t.innerHTML = `<div class="toast-body">${msg}</div>`;
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 2500);
+    }
+
+    // Real-time Order Limits with Color Change
+    function initOrderLimits() {
+      const today = getToday();
+      const ref = db.collection("dailyLimits").doc(today);
+
+      ref.onSnapshot(doc => {
+        const data = doc.data() || { morningCount: 0, eveningCount: 0 };
+        
+        const morningLeft = 5 - data.morningCount;
+        const eveningLeft = 5 - data.eveningCount;
+
+        // Update numbers with color
+        const morningEl = document.getElementById("morningLeftDisplay");
+        const eveningEl = document.getElementById("eveningLeftDisplay");
+
+        morningEl.textContent = Math.max(0, morningLeft);
+        eveningEl.textContent = Math.max(0, eveningLeft);
+
+        // Color logic
+        morningEl.className = `limit-number ${morningLeft >= 3 ? 'text-success' : morningLeft >= 1 ? 'text-warning' : 'text-danger'}`;
+        eveningEl.className = `limit-number ${eveningLeft >= 3 ? 'text-success' : eveningLeft >= 1 ? 'text-warning' : 'text-danger'}`;
+
+        // Sold out alert
+        const alertEl = document.getElementById("limitAlert");
+        const isMorningNow = isMorning();
+
+        if ((isMorningNow && morningLeft <= 0) || (!isMorningNow && eveningLeft <= 0)) {
+          alertEl.classList.remove("d-none");
+          alertEl.innerHTML = `😢 <strong>Today's ${isMorningNow ? 'Morning' : 'Evening'} orders are sold out!</strong><br>Maximum 5 orders per period reached.`;
+        } else {
+          alertEl.classList.add("d-none");
+        }
+      });
     }
 
     // Initialize
     window.onload = () => {
       renderMenu();
-      updateCartUI();
-      console.log("✅ Page fully loaded - Add to Cart should work properly");
+      initOrderLimits();
+      console.log("✅ Final system with dynamic order limits loaded");
     };
   </script>
 </body>
