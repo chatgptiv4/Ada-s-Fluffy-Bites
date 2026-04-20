@@ -1,6 +1,7 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
+  
   <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-524DD03MKN"></script>
 <script>
@@ -99,19 +100,7 @@
 
     function loadDashboard() {
       db.collection("orders").orderBy("timestamp", "desc").onSnapshot(snapshot => {
-        let html = `
-          <table class="table table-hover">
-            <thead class="table-dark">
-              <tr>
-                <th>Customer</th>
-                <th>Items</th>
-                <th>Total</th>
-                <th>Status</th>
-                <th>Paid</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>`;
+        let html = `<table class="table table-hover"><thead class="table-dark"><tr><th>Customer</th><th>Items</th><th>Total</th><th>Status</th><th>Paid</th><th>Actions</th></tr></thead><tbody>`;
 
         let totalOrders = 0;
         let revenue = 0;
@@ -126,11 +115,7 @@
               <td><strong>${o.name}</strong><br><small>${o.phone}</small></td>
               <td>${o.items ? o.items.map(i => `${i.quantity}x ${i.name}`).join("<br>") : 'N/A'}</td>
               <td>₦${(o.total || 0).toLocaleString()}</td>
-              <td>
-                <span class="badge ${o.status==='confirmed' ? 'bg-success' : o.status==='declined' ? 'bg-danger' : 'bg-warning'}">
-                  ${o.status || 'pending'}
-                </span>
-              </td>
+              <td><span class="badge ${o.status==='confirmed' ? 'bg-success' : o.status==='declined' ? 'bg-danger' : 'bg-warning'}">${o.status || 'pending'}</span></td>
               <td>${o.paid ? '✅ Paid' : '⏳ Pending'}</td>
               <td>
                 <button onclick="confirmOrder('${doc.id}')" class="btn btn-sm btn-success me-1">✅ Confirm</button>
@@ -148,7 +133,7 @@
         document.getElementById("revenue").textContent = `₦${revenue.toLocaleString()}`;
       });
 
-      // Daily limits
+      // Real-time limits
       const today = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`;
       db.collection("dailyLimits").doc(today).onSnapshot(doc => {
         const d = doc.data() || { morningCount: 0, eveningCount: 0 };
@@ -157,32 +142,45 @@
       });
     }
 
-    async function confirmOrder(id) {
-      await db.collection("orders").doc(id).update({ status: "confirmed" });
-    }
-
+    async function confirmOrder(id) { await db.collection("orders").doc(id).update({ status: "confirmed" }); }
     async function declineOrder(id) {
-      if (confirm("Decline this order?")) {
-        await db.collection("orders").doc(id).update({ status: "declined" });
-      }
+      if (confirm("Decline this order?")) await db.collection("orders").doc(id).update({ status: "declined" });
     }
-
     async function markPaid(id, paid) {
       await db.collection("orders").doc(id).update({ paid });
     }
 
-    // NEW: Delete Order Function
+    // UPDATED: Delete Order + Decrement Counter
     async function deleteOrder(id) {
-      if (!confirm("Are you sure you want to permanently delete this order? This action cannot be undone.")) {
-        return;
-      }
+      if (!confirm("Delete this order? This will free up the slot.")) return;
 
       try {
-        await db.collection("orders").doc(id).delete();
-        console.log("Order deleted successfully");
-        // No need to refresh - onSnapshot will update automatically
+        const orderSnap = await db.collection("orders").doc(id).get();
+        if (!orderSnap.exists) return alert("Order not found");
+
+        const order = orderSnap.data();
+        const today = `${order.timestamp.toDate().getFullYear()}-${String(order.timestamp.toDate().getMonth()+1).padStart(2,'0')}-${String(order.timestamp.toDate().getDate()).padStart(2,'0')}`;
+        const period = order.period || (order.timestamp.toDate().getHours() < 12 ? "morning" : "evening");
+
+        const batch = db.batch();
+
+        // Delete the order
+        batch.delete(db.collection("orders").doc(id));
+
+        // Decrement the correct counter
+        const limitRef = db.collection("dailyLimits").doc(today);
+        batch.update(limitRef, {
+          morningCount: firebase.firestore.FieldValue.increment(period === "morning" ? -1 : 0),
+          eveningCount: firebase.firestore.FieldValue.increment(period === "evening" ? -1 : 0)
+        });
+
+        await batch.commit();
+
+        console.log("Order deleted and slot freed successfully");
+        // No need to alert - real-time listener will update everything
+
       } catch (e) {
-        console.error("Delete error:", e);
+        console.error(e);
         alert("Failed to delete order. Please try again.");
       }
     }
