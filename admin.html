@@ -1,8 +1,7 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  
-  <!-- Google tag (gtag.js) -->
+   <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-524DD03MKN"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -20,6 +19,8 @@
     body { background: #F5EDE3; }
     .dashboard-card { background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(139,69,19,0.15); }
     .table th { background: #8B4513; color: white; }
+    .btn-reset { background: #dc3545; color: white; }
+    .btn-reset:hover { background: #c82333; }
   </style>
 </head>
 <body>
@@ -40,7 +41,10 @@
     <div id="dashboardScreen" class="d-none">
       <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="fw-bold">🥞 Admin Dashboard</h1>
-        <button onclick="logout()" class="btn btn-outline-danger">Logout</button>
+        <div>
+          <button onclick="manualReset()" class="btn btn-reset me-2">🔄 Reset Today's Slots</button>
+          <button onclick="logout()" class="btn btn-outline-danger">Logout</button>
+        </div>
       </div>
 
       <div class="row g-4 mb-5">
@@ -85,7 +89,7 @@
       } catch (e) {
         if (e.code === "auth/user-not-found") {
           await auth.createUserWithEmailAndPassword(email, password);
-          alert("Admin account created! Logging in...");
+          alert("Admin account created!");
           login();
         } else {
           alert("Login failed: " + e.message);
@@ -98,12 +102,16 @@
       location.reload();
     }
 
+    function getToday() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
     function loadDashboard() {
+      // Real-time orders
       db.collection("orders").orderBy("timestamp", "desc").onSnapshot(snapshot => {
         let html = `<table class="table table-hover"><thead class="table-dark"><tr><th>Customer</th><th>Items</th><th>Total</th><th>Status</th><th>Paid</th><th>Actions</th></tr></thead><tbody>`;
-
-        let totalOrders = 0;
-        let revenue = 0;
+        let totalOrders = 0, revenue = 0;
 
         snapshot.forEach(doc => {
           const o = doc.data();
@@ -128,14 +136,15 @@
 
         html += `</tbody></table>`;
         document.getElementById("ordersTable").innerHTML = html || "<p class='text-center'>No orders yet.</p>";
-
         document.getElementById("totalOrders").textContent = totalOrders;
         document.getElementById("revenue").textContent = `₦${revenue.toLocaleString()}`;
       });
 
       // Real-time limits
-      const today = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`;
-      db.collection("dailyLimits").doc(today).onSnapshot(doc => {
+      const today = getToday();
+      const limitRef = db.collection("dailyLimits").doc(today);
+
+      limitRef.onSnapshot(doc => {
         const d = doc.data() || { morningCount: 0, eveningCount: 0 };
         document.getElementById("morningLeft").textContent = 5 - d.morningCount;
         document.getElementById("eveningLeft").textContent = 5 - d.eveningCount;
@@ -150,38 +159,54 @@
       await db.collection("orders").doc(id).update({ paid });
     }
 
-    // UPDATED: Delete Order + Decrement Counter
+    // Delete Order + Free Slot
     async function deleteOrder(id) {
-      if (!confirm("Delete this order? This will free up the slot.")) return;
+      if (!confirm("Delete this order and free the slot?")) return;
 
       try {
         const orderSnap = await db.collection("orders").doc(id).get();
-        if (!orderSnap.exists) return alert("Order not found");
+        if (!orderSnap.exists) return;
 
         const order = orderSnap.data();
-        const today = `${order.timestamp.toDate().getFullYear()}-${String(order.timestamp.toDate().getMonth()+1).padStart(2,'0')}-${String(order.timestamp.toDate().getDate()).padStart(2,'0')}`;
-        const period = order.period || (order.timestamp.toDate().getHours() < 12 ? "morning" : "evening");
+        const orderDate = order.timestamp.toDate();
+        const todayStr = `${orderDate.getFullYear()}-${String(orderDate.getMonth()+1).padStart(2,'0')}-${String(orderDate.getDate()).padStart(2,'0')}`;
+        const period = order.period || (orderDate.getHours() < 12 ? "morning" : "evening");
 
         const batch = db.batch();
-
-        // Delete the order
         batch.delete(db.collection("orders").doc(id));
 
-        // Decrement the correct counter
-        const limitRef = db.collection("dailyLimits").doc(today);
+        const limitRef = db.collection("dailyLimits").doc(todayStr);
         batch.update(limitRef, {
           morningCount: firebase.firestore.FieldValue.increment(period === "morning" ? -1 : 0),
           eveningCount: firebase.firestore.FieldValue.increment(period === "evening" ? -1 : 0)
         });
 
         await batch.commit();
-
-        console.log("Order deleted and slot freed successfully");
-        // No need to alert - real-time listener will update everything
-
       } catch (e) {
         console.error(e);
-        alert("Failed to delete order. Please try again.");
+        alert("Failed to delete order.");
+      }
+    }
+
+    // NEW: Manual Reset Button - Resets Today's Slots
+    async function manualReset() {
+      if (!confirm("⚠️ Reset today's order slots?\n\nThis will allow 5 new morning and 5 new evening orders.\n\nAre you sure?")) {
+        return;
+      }
+
+      try {
+        const today = getToday();
+        const limitRef = db.collection("dailyLimits").doc(today);
+
+        await limitRef.set({
+          morningCount: 0,
+          eveningCount: 0
+        });
+
+        alert("✅ Today's slots have been reset successfully!\nYou can now accept fresh orders.");
+      } catch (e) {
+        console.error(e);
+        alert("Failed to reset slots. Please try again.");
       }
     }
 
