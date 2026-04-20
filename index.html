@@ -1,7 +1,9 @@
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- Google tag (gtag.js) -->
+    <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-524DD03MKN"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -25,16 +27,11 @@
     .cart-float { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
 
     .limit-box {
-      background: white;
-      border-radius: 15px;
-      padding: 20px;
-      box-shadow: 0 5px 15px rgba(139,69,19,0.1);
-      margin-bottom: 25px;
+      background: white; border-radius: 15px; padding: 20px; box-shadow: 0 5px 15px rgba(139,69,19,0.1); margin-bottom: 25px;
     }
-    .limit-number {
-      font-size: 2.5rem;
-      font-weight: bold;
-      transition: color 0.4s ease;
+    .limit-number { font-size: 2.5rem; font-weight: bold; transition: color 0.4s ease; }
+    .extras-card {
+      background: #8B4513; color: white; border-radius: 20px; padding: 25px;
     }
     .success-overlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -68,9 +65,9 @@
 
   <div class="container py-4">
     <h1 class="display-4 text-center fw-bold text-brown mb-2">Good Morning, Sunshine! ☀️</h1>
-    <p class="text-center mb-5 lead">Made for better mornings ❤️</p>
+    <p class="text-center mb-5 lead">Fresh, fluffy pancakes made with love</p>
 
-    <!-- Order Limits Display -->
+    <!-- Order Limits -->
     <div class="limit-box">
       <div class="row text-center">
         <div class="col-6 border-end">
@@ -89,17 +86,46 @@
       </div>
     </div>
 
-    <!-- Sold Out Alert -->
     <div id="limitAlert" class="alert alert-danger text-center fw-bold d-none"></div>
 
+    <!-- Main Menu -->
     <div class="row" id="menuContainer"></div>
+
+    <!-- DRINKS & EXTRAS Section -->
+    <div class="extras-card mt-5">
+      <h4 class="text-center mb-4 fw-bold">DRINK AVAILABLE &amp; EXTRAS</h4>
+      <div class="row">
+        <div class="col-md-6">
+          <strong>Our Morning Sip &amp; Selection</strong><br>
+          • Tea<br>
+          • Coffee (Black Coffee or 3-in-1 Nescafé)<br>
+          • Yogurt<br><br>
+          <small><strong>Note:</strong> Drinks included only in "Deluxe" and "Eggstravaganza"</small>
+        </div>
+        <div class="col-md-6">
+          <strong>Toppings &amp; Extras</strong><br>
+          • Fruits (Banana, apples, etc) - ₦300<br>
+          • Syrup-honey (optional)<br>
+          • Other toppings (nuts, chocolate, chips, Oreos)<br><br>
+          <strong>NOTE</strong><br>
+          <small>Sunrise Stacks and Sizzling Stacks do not include drinks but can be included with extra fees.<br>
+          Deluxe and Eggstravaganza Combos comes with your own choice of drink.<br>
+          Syrup is optional for all packages.<br>
+          Fruits and Extras are separate additions.</small>
+        </div>
+      </div>
+      <div class="text-center mt-4">
+        <strong>Create Your Own Stack!</strong><br>
+        <small>Don't see exactly what you want on the menu? You can customize your order based on your preference. Just let us know.</small>
+      </div>
+    </div>
   </div>
 
   <button onclick="showCart()" class="cart-float btn btn-primary btn-lg rounded-circle shadow-lg">
     <i class="fa-solid fa-shopping-cart"></i> <span id="floatingTotal" class="ms-2">₦0</span>
   </button>
 
-  <!-- Cart Modal -->
+  <!-- Cart & Checkout Modals -->
   <div class="modal fade" id="cartModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
@@ -116,7 +142,6 @@
     </div>
   </div>
 
-  <!-- Checkout Modal -->
   <div class="modal fade" id="checkoutModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
@@ -171,14 +196,15 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
+    // Main Menu Items
     const menuItems = [
-      { id: 1, name: "Sunrise Stack", desc: "Fluffy pancakes with fresh berries & honey drizzle", price: 1600 },
-      { id: 2, name: "Sizzling Stack", desc: "Hot chocolate sauce & banana pancakes", price: 1700 },
-      { id: 3, name: "Classic Feast", desc: "Pancakes, eggs, bacon & syrup", price: 2300 },
-      { id: 4, name: "Eggstravaganza", desc: "Loaded with scrambled eggs & sausages", price: 2500 },
-      { id: 5, name: "Eggstravaganza + Drink", desc: "Full breakfast + chilled drink", price: 2700 },
-      { id: 6, name: "Breakfast Deluxe + Fruit", desc: "Pancakes, eggs, fruits & yogurt", price: 3100 },
-      { id: 7, name: "Breakfast Deluxe (Signature Combo)", desc: "Our most popular combo!", price: 3500 }
+      { id: 1, name: "SUNRISE STACK", desc: "3 pancake + 1 scrambled egg (syrup optional)", price: 1600 },
+      { id: 2, name: "SIZZLING STACK", desc: "3 pancake + 1 sausage (syrup optional)", price: 1700 },
+      { id: 3, name: "CLASSIC FEAST", desc: "3 pancakes +1 scrambled egg +2 sausage (syrup optional)", price: 2300 },
+      { id: 4, name: "EGGSTRAVAGANZA", desc: "3 pancakes +2 scrambled egg + 2 sausage (syrup optional)", price: 2500 },
+      { id: 5, name: "EGGSTRAVAGANZA + DRINK", desc: "3 pancakes + 1 scrambled eggs + 2 sausages + choice of drink (syrup optional)", price: 2700 },
+      { id: 6, name: "BREAKFAST DELUXE + FRUIT", desc: "3 pancakes +1 scrambled eggs + 2sausages + bananas +choice of drink (syrup optional)", price: 3100 },
+      { id: 7, name: "BREAKFAST DELUXE (SIGNATURE COMBO)", desc: "3 pancakes +2 scrambled eggs + 2 sausages choice of drink (syrup optional) fruit", price: 3500 }
     ];
 
     let cart = [];
@@ -198,7 +224,7 @@
         <div class="col-md-6 col-lg-4 mb-4">
           <div class="card h-100">
             <div class="card-body">
-              <h5>${item.name}</h5>
+              <h5 class="text-uppercase fw-bold">${item.name}</h5>
               <p class="text-muted small">${item.desc}</p>
               <div class="d-flex justify-content-between align-items-center">
                 <h5 class="text-success">₦${item.price.toLocaleString()}</h5>
@@ -333,7 +359,7 @@
       setTimeout(() => t.remove(), 2500);
     }
 
-    // Real-time Order Limits with Color Change
+    // Real-time Order Limits
     function initOrderLimits() {
       const today = getToday();
       const ref = db.collection("dailyLimits").doc(today);
@@ -344,18 +370,15 @@
         const morningLeft = 5 - data.morningCount;
         const eveningLeft = 5 - data.eveningCount;
 
-        // Update numbers with color
         const morningEl = document.getElementById("morningLeftDisplay");
         const eveningEl = document.getElementById("eveningLeftDisplay");
 
         morningEl.textContent = Math.max(0, morningLeft);
         eveningEl.textContent = Math.max(0, eveningLeft);
 
-        // Color logic
         morningEl.className = `limit-number ${morningLeft >= 3 ? 'text-success' : morningLeft >= 1 ? 'text-warning' : 'text-danger'}`;
         eveningEl.className = `limit-number ${eveningLeft >= 3 ? 'text-success' : eveningLeft >= 1 ? 'text-warning' : 'text-danger'}`;
 
-        // Sold out alert
         const alertEl = document.getElementById("limitAlert");
         const isMorningNow = isMorning();
 
@@ -368,11 +391,10 @@
       });
     }
 
-    // Initialize
     window.onload = () => {
       renderMenu();
       initOrderLimits();
-      console.log("✅ Final system with dynamic order limits loaded");
+      console.log("✅ Full menu with Drinks & Extras section loaded");
     };
   </script>
 </body>
