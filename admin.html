@@ -9,6 +9,7 @@
   <style>
     body { background: #F5EDE3; }
     .dashboard-card { background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(139,69,19,0.15); }
+    .table th { background: #8B4513; color: white; }
   </style>
 </head>
 <body>
@@ -19,16 +20,13 @@
       <div class="card mx-auto" style="max-width: 400px;">
         <div class="card-body">
           <input id="email" type="email" class="form-control mb-3" placeholder="Admin email" value="admin@adasfluffybites.com">
-          <input id="password" type="password" class="form-control mb-3" placeholder="Password (min 6 characters)">
+          <input id="password" type="password" class="form-control mb-3" placeholder="Password">
           <button onclick="login()" class="btn btn-primary w-100 py-3">Login as Admin</button>
-          <small class="text-muted d-block text-center mt-3">
-            First time? Just enter any email + password. It will create the admin account.
-          </small>
         </div>
       </div>
     </div>
 
-    <!-- Dashboard Screen -->
+    <!-- Dashboard -->
     <div id="dashboardScreen" class="d-none">
       <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="fw-bold">🥞 Admin Dashboard</h1>
@@ -36,30 +34,10 @@
       </div>
 
       <div class="row g-4 mb-5">
-        <div class="col-md-3">
-          <div class="dashboard-card p-4 text-center">
-            <h5>Today's Orders</h5>
-            <h2 id="totalOrders">0</h2>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="dashboard-card p-4 text-center">
-            <h5>Revenue (Paid)</h5>
-            <h2 id="revenue">₦0</h2>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="dashboard-card p-4 text-center">
-            <h5>Morning Slots Left</h5>
-            <h2 id="morningLeft">5</h2>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="dashboard-card p-4 text-center">
-            <h5>Evening Slots Left</h5>
-            <h2 id="eveningLeft">5</h2>
-          </div>
-        </div>
+        <div class="col-md-3"><div class="dashboard-card p-4 text-center"><h5>Today's Orders</h5><h2 id="totalOrders">0</h2></div></div>
+        <div class="col-md-3"><div class="dashboard-card p-4 text-center"><h5>Revenue (Paid)</h5><h2 id="revenue">₦0</h2></div></div>
+        <div class="col-md-3"><div class="dashboard-card p-4 text-center"><h5>Morning Left</h5><h2 id="morningLeft">5</h2></div></div>
+        <div class="col-md-3"><div class="dashboard-card p-4 text-center"><h5>Evening Left</h5><h2 id="eveningLeft">5</h2></div></div>
       </div>
 
       <h5 class="mb-3">Live Orders</h5>
@@ -73,49 +51,32 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
   <script>
-    // ================== NEW FIREBASE CONFIG (Updated) ==================
     const firebaseConfig = {
       apiKey: "AIzaSyDJhlVlCvOBJ5I5Cdss-l9-H3RUlOi2txY",
       authDomain: "adafluffybites.firebaseapp.com",
       projectId: "adafluffybites",
       storageBucket: "adafluffybites.firebasestorage.app",
       messagingSenderId: "507734690578",
-      appId: "1:507734690578:web:9fef35e12c3bf5e92ac1cb",
-      measurementId: "G-524DD03MKN"
+      appId: "1:507734690578:web:9fef35e12c3bf5e92ac1cb"
     };
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
     const auth = firebase.auth();
 
-    let currentUser = null;
-
     async function login() {
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
-
-      if (!email || !password) {
-        alert("Please enter email and password");
-        return;
-      }
-
       try {
         await auth.signInWithEmailAndPassword(email, password);
-        currentUser = auth.currentUser;
         document.getElementById("loginScreen").classList.add("d-none");
         document.getElementById("dashboardScreen").classList.remove("d-none");
         loadDashboard();
-        alert("✅ Login successful! Welcome to Admin Dashboard.");
       } catch (e) {
-        if (e.code === "auth/user-not-found" || e.code === "auth/invalid-credential") {
-          // Auto-create admin account on first try
-          try {
-            await auth.createUserWithEmailAndPassword(email, password);
-            alert("✅ New admin account created! Logging you in...");
-            await login(); // Retry login after creation
-          } catch (createError) {
-            alert("Failed to create account: " + createError.message);
-          }
+        if (e.code === "auth/user-not-found") {
+          await auth.createUserWithEmailAndPassword(email, password);
+          alert("Admin account created! Logging in...");
+          login();
         } else {
           alert("Login failed: " + e.message);
         }
@@ -128,10 +89,9 @@
     }
 
     function loadDashboard() {
-      // Real-time orders listener
       db.collection("orders").orderBy("timestamp", "desc").onSnapshot(snapshot => {
         let html = `
-          <table class="table table-hover align-middle">
+          <table class="table table-hover">
             <thead class="table-dark">
               <tr>
                 <th>Customer</th>
@@ -166,19 +126,20 @@
               <td>
                 <button onclick="confirmOrder('${doc.id}')" class="btn btn-sm btn-success me-1">✅ Confirm</button>
                 <button onclick="declineOrder('${doc.id}')" class="btn btn-sm btn-danger me-1">❌ Decline</button>
-                <button onclick="markPaid('${doc.id}', ${!o.paid})" class="btn btn-sm btn-info">${o.paid ? 'Undo' : '💰 Mark Paid'}</button>
+                <button onclick="markPaid('${doc.id}', ${!o.paid})" class="btn btn-sm btn-info me-1">${o.paid ? 'Undo' : '💰 Paid'}</button>
+                <button onclick="deleteOrder('${doc.id}')" class="btn btn-sm btn-outline-danger">🗑️ Delete</button>
               </td>
             </tr>`;
         });
 
         html += `</tbody></table>`;
-        document.getElementById("ordersTable").innerHTML = html || "<p class='text-center text-muted'>No orders yet.</p>";
-        
+        document.getElementById("ordersTable").innerHTML = html || "<p class='text-center'>No orders yet.</p>";
+
         document.getElementById("totalOrders").textContent = totalOrders;
         document.getElementById("revenue").textContent = `₦${revenue.toLocaleString()}`;
       });
 
-      // Real-time daily limits
+      // Daily limits
       const today = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`;
       db.collection("dailyLimits").doc(today).onSnapshot(doc => {
         const d = doc.data() || { morningCount: 0, eveningCount: 0 };
@@ -188,16 +149,7 @@
     }
 
     async function confirmOrder(id) {
-      try {
-        await db.collection("orders").doc(id).update({ status: "confirmed" });
-        const orderSnap = await db.collection("orders").doc(id).get();
-        const order = orderSnap.data();
-        const msg = encodeURIComponent(`Hello ${order.name}, your order has been confirmed ✅\nTotal: ₦${order.total}\nEnjoy your fluffy bites! 🥞`);
-        window.open(`https://wa.me/${order.phone}?text=${msg}`, "_blank");
-        playNotificationSound();
-      } catch (e) {
-        alert("Failed to confirm: " + e.message);
-      }
+      await db.collection("orders").doc(id).update({ status: "confirmed" });
     }
 
     async function declineOrder(id) {
@@ -207,23 +159,27 @@
     }
 
     async function markPaid(id, paid) {
-      await db.collection("orders").doc(id).update({ paid: paid });
+      await db.collection("orders").doc(id).update({ paid });
     }
 
-    function playNotificationSound() {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = ctx.createOscillator();
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(800, ctx.currentTime);
-      oscillator.connect(ctx.destination);
-      oscillator.start();
-      setTimeout(() => oscillator.stop(), 300);
+    // NEW: Delete Order Function
+    async function deleteOrder(id) {
+      if (!confirm("Are you sure you want to permanently delete this order? This action cannot be undone.")) {
+        return;
+      }
+
+      try {
+        await db.collection("orders").doc(id).delete();
+        console.log("Order deleted successfully");
+        // No need to refresh - onSnapshot will update automatically
+      } catch (e) {
+        console.error("Delete error:", e);
+        alert("Failed to delete order. Please try again.");
+      }
     }
 
-    // Auto check if already logged in
     auth.onAuthStateChanged(user => {
       if (user) {
-        currentUser = user;
         document.getElementById("loginScreen").classList.add("d-none");
         document.getElementById("dashboardScreen").classList.remove("d-none");
         loadDashboard();
